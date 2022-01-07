@@ -1,5 +1,6 @@
 <template>
-  <div class="control">
+  <div class="score" @touchmove.prevent>Score:{{ score }}</div>
+  <div class="control" @touchmove.prevent>
     <van-button
       type="primary"
       @touchstart="left"
@@ -26,15 +27,22 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import * as Phaser from "Phaser";
+import { Toast } from "vant";
+
 let myCanvas = ref(null);
 let canvasBox = ref(null);
-var platforms;
-var player;
-var cursors;
-var stars;
-var controlStatus = [];
+let platforms;
+let player;
+let cursors;
+let stars;
+let controlStatus = [];
+let score = ref(0);
+let bombs;
+let game;
+let gameOverStatus = false;
+
 onMounted(() => {
-  var config = {
+  let config = {
     type: Phaser.AUTO,
     width: canvasBox.value.clientWidth,
     height: canvasBox.value.clientHeight,
@@ -52,9 +60,11 @@ onMounted(() => {
       update: update,
     },
   };
+  game = new Phaser.Game(config);
 
-  var game = new Phaser.Game(config);
-
+  /**
+   * 加载资源
+   */
   function preload() {
     this.load.image("sky", "/src/assets/sky.png");
     this.load.image("ground", "/src/assets/platform.png");
@@ -66,8 +76,10 @@ onMounted(() => {
     });
   }
 
+  /**
+   * 创建游戏对象
+   */
   function create() {
-    console.log(234);
     // setOrigin设置中心点为00
     this.add.image(0, 0, "sky").setOrigin(0, 0);
     // 生成一个静态物理组，在arcade物理系统中，有动态的和静态的两类物体，动态物体可以通过外力，比如
@@ -86,6 +98,7 @@ onMounted(() => {
 
     player = this.physics.add.sprite(100, 450, "dude");
     player.setBounce(0.2);
+
     // 画面边界碰撞检测
     player.setCollideWorldBounds(true);
     // player.body.setGravityY(300)
@@ -111,13 +124,15 @@ onMounted(() => {
       frameRate: 10,
     });
 
+    // 监听键盘
     cursors = this.input.keyboard.createCursorKeys();
-
+    // player和platforms添加碰撞检测
     this.physics.add.collider(player, platforms);
 
+    // 添加星星
     stars = this.physics.add.group({
       key: "star",
-      repeat: 11,
+      repeat: 5,
       setXY: {
         x: 6,
         y: 0,
@@ -133,9 +148,21 @@ onMounted(() => {
     this.physics.add.collider(stars, platforms);
     // 检测玩家是否与星星重叠
     this.physics.add.overlap(player, stars, collectStar, null, this);
+
+    // 添加敌人
+    bombs = this.physics.add.group();
+    // 碰撞器
+    this.physics.add.collider(bombs, platforms);
+    this.physics.add.collider(player, bombs, hitBomb, null, this);
   }
 
+  /**
+   * 帧刷新
+   */
   function update() {
+    if (gameOverStatus) {
+      return;
+    }
     if (cursors.left.isDown || controlStatus.includes("left")) {
       player.setVelocityX(-160);
       player.anims.play("left", true);
@@ -161,9 +188,42 @@ onMounted(() => {
    */
   function collectStar(player, star) {
     star.disableBody(true, true);
+    score.value += 10;
+    if (score.value == 100) {
+      Toast.success("恭喜您通关了");
+      gameOverStatus = true;
+      this.physics.pause();
+      player.anims.play("turn");
+      return;
+    }
+
+    // 看看还有多少星星活着
+
+    if (stars.countActive(true) === 0) {
+      stars.children.iterate(function (child) {
+        // 重新激活所有星星，重置它们的位置为0，这将使所有星星再次从画面顶部落下来
+        child.enableBody(true, child.x, 0, true, true);
+      });
+      let x = Phaser.Math.Between(0, this.game.config.width);
+      let bomb = bombs.create(x, 16, "bomb");
+      bomb.setBounce(1);
+      bomb.setCollideWorldBounds(true);
+      bomb.setVelocityY(Phaser.Math.Between(-200, 200));
+    }
+  }
+
+  function hitBomb(player, bomb) {
+    // 游戏结束
+    gameOverStatus = true;
+    this.physics.pause();
+    player.setTint(0xff00000);
+    player.anims.play("turn");
   }
 });
 
+/**
+ * 移动端控制
+ */
 function left() {
   controlStatus.push("left");
 }
@@ -190,6 +250,11 @@ function handleTouchEnd(controlName) {
   bottom: 0;
   display: flex;
   justify-content: space-around;
+}
+.score {
+  position: absolute;
+  top: 10px;
+  left: 10px;
 }
 .canvas_box {
   width: 100vw;
