@@ -28,6 +28,11 @@
 import { ref, onMounted } from "vue";
 import * as Phaser from "Phaser";
 import { Toast } from "vant";
+import sky from "../assets/sky.png";
+import ground from "../assets/platform.png";
+import star from "../assets/star.png";
+import bomb from "../assets/bomb.png";
+import dude from "../assets/dude.png";
 
 let myCanvas = ref(null);
 let canvasBox = ref(null);
@@ -66,11 +71,11 @@ onMounted(() => {
    * 加载资源
    */
   function preload() {
-    this.load.image("sky", "/src/assets/sky.png");
-    this.load.image("ground", "/src/assets/platform.png");
-    this.load.image("star", "/src/assets/star.png");
-    this.load.image("bomb", "/src/assets/bomb.png");
-    this.load.spritesheet("dude", "/src/assets/dude.png", {
+    this.load.image("sky", sky);
+    this.load.image("ground", ground);
+    this.load.image("star", star);
+    this.load.image("bomb", bomb);
+    this.load.spritesheet("dude", dude, {
       frameWidth: 32,
       frameHeight: 48,
     });
